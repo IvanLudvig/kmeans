@@ -7,7 +7,29 @@
 </head>
 
 <body>
-    <div id='container'></div>
+    <div id='container'>
+    </div>
+
+    <div class='controls'>
+        <div class='control'>
+            Points: <input type='number' />
+        </div>
+        <div class='control'>
+            Clusters: <input type='number' />
+        </div>
+        <div class='control'>
+            <button>
+
+                Stop
+            </button>
+            <button>
+                Restart
+            </button>
+        </div>
+        <div class='control'>
+
+        </div>
+    </div>
 
     <script>
         const svgContainer = document.getElementById('container');
@@ -16,21 +38,25 @@
 
         let viewBox = { x: 0, y: 0, w: 1000, h: 600 };
         const width = viewBox.w - margin.left - margin.right;
-        const height = viewBox.h  - margin.top - margin.bottom;
+        const height = viewBox.h - margin.top - margin.bottom;
 
-        console.log(window);
+        document.body.style.background = '#1e1e1e';
+
         const svg = d3.select('#container')
             .append('svg')
             .attr('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`)
             .attr('width', window.innerWidth - margin.left - margin.right)
             .attr('height', window.innerHeight - margin.top - margin.bottom)
             .append('g')
-            .attr('transform', `translate(${margin.left}, ${margin.top})`);
-
-        //Read the data
+            .attr('transform', `translate(${margin.left}, ${margin.top})`)
+            .attr('color', '#e6e8ea')
+            .attr('font-weight', 'bold')
+            .attr('stroke-width', 2);
 
         const xrange = [0, 10];
         const yrange = [0, 10];
+        const numPoints = 1000;
+        const numClusters = 25;
 
         const x = d3.scaleLinear()
             .domain(xrange)
@@ -43,7 +69,8 @@
         const getRandomPoint = () => {
             const point = {
                 x: Math.random() * xrange[1],
-                y: Math.random() * yrange[1]
+                y: Math.random() * yrange[1],
+                cluster: null
             };
 
             return point;
@@ -53,7 +80,14 @@
             return Array.from(Array(n)).map(_ => getRandomPoint());
         }
 
-        const data = generatePoints(10);
+        const distance = (a, b) => {
+            return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+        }
+
+        let points = generatePoints(numPoints);
+        let centroids = generatePoints(numClusters);
+
+        const color = d3.scaleOrdinal(d3.schemeCategory10);
 
         svg.append('g')
             .attr('transform', `translate(0, ${height})`)
@@ -62,14 +96,65 @@
         svg.append('g')
             .call(d3.axisLeft(y));
 
-        svg.append('g')
+        const pointsSvg = svg.append('g')
             .selectAll('dot')
-            .data(data)
+            .data(points)
             .join('circle')
-            .attr('cx', function (d) { return x(d.x); })
-            .attr('cy', function (d) { return y(d.y); })
+            .attr('cx', d => x(d.x))
+            .attr('cy', d => y(d.y))
             .attr('r', 5)
-            .style('fill', '#69b3a2');
+            .style('fill', d => color(d.cluster));
+
+        const centroidsSvg = svg.append('g')
+            .selectAll('dot')
+            .data(centroids)
+            .join('circle')
+            .attr('cx', d => x(d.x))
+            .attr('cy', d => y(d.y))
+            .attr('r', 5)
+            .style('fill', '#e6e8ea')
+            .attr('stroke', (d, i) => color(i))
+            .attr('stroke-width', 2);
+
+        const closestCentroid = (point) => {
+            const distances = centroids.map(centroid => distance(point, centroid));
+            const i = distances.findIndex(d => d === Math.min(...distances));
+            return i;
+        }
+
+        const updatePoints = () => {
+            points.forEach(point => {
+                point.cluster = closestCentroid(point);
+            });
+            pointsSvg.transition().style('fill', d => color(d.cluster));
+        }
+
+        const avg = (arr) => arr.reduce((p, c) => p + c, 0) / arr.length;
+        const updateCentroids = () => {
+            centroids.forEach((centroid, i) => {
+                const cluster = points.filter(point => point.cluster === i);
+                if (cluster.length > 0) {
+                    centroid.x = avg(cluster.map(point => point.x));
+                    centroid.y = avg(cluster.map(point => point.y));
+                }
+            });
+            centroidsSvg.transition().attr('cx', d => x(d.x)).attr('cy', d => y(d.y));
+        }
+
+        const render = () => {
+            updatePoints();
+            setInterval(() => {
+                updateCentroids();
+                updatePoints();
+            }, 1000);
+        }
+
+        const reset = () => {
+            points = generatePoints(numPoints);
+            centroids = generatePoints(numClusters);
+        }
+
+        render();
 
     </script>
 </body>
