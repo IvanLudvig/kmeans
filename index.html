@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<meta charset='utf-8'>
+
+<head>
+    <script src='https://d3js.org/d3.v6.js'></script>
+    <link rel='stylesheet' href='styles.css'>
+</head>
+
+<body>
+    <div id='container'></div>
+
+    <script>
+        const svgContainer = document.getElementById('container');
+
+        const margin = { top: 10, right: 30, bottom: 30, left: 60 };
+
+        let viewBox = { x: 0, y: 0, w: 1000, h: 600 };
+        const width = viewBox.w - margin.left - margin.right;
+        const height = viewBox.h  - margin.top - margin.bottom;
+
+        console.log(window);
+        const svg = d3.select('#container')
+            .append('svg')
+            .attr('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`)
+            .attr('width', window.innerWidth - margin.left - margin.right)
+            .attr('height', window.innerHeight - margin.top - margin.bottom)
+            .append('g')
+            .attr('transform', `translate(${margin.left}, ${margin.top})`);
+
+        //Read the data
+
+        const xrange = [0, 10];
+        const yrange = [0, 10];
+
+        const x = d3.scaleLinear()
+            .domain(xrange)
+            .range([0, width]);
+
+        const y = d3.scaleLinear()
+            .domain(yrange)
+            .range([height, 0]);
+
+        const getRandomPoint = () => {
+            const point = {
+                x: Math.random() * xrange[1],
+                y: Math.random() * yrange[1]
+            };
+
+            return point;
+        }
+
+        const generatePoints = (n) => {
+            return Array.from(Array(n)).map(_ => getRandomPoint());
+        }
+
+        const data = generatePoints(10);
+
+        svg.append('g')
+            .attr('transform', `translate(0, ${height})`)
+            .call(d3.axisBottom(x));
+
+        svg.append('g')
+            .call(d3.axisLeft(y));
+
+        svg.append('g')
+            .selectAll('dot')
+            .data(data)
+            .join('circle')
+            .attr('cx', function (d) { return x(d.x); })
+            .attr('cy', function (d) { return y(d.y); })
+            .attr('r', 5)
+            .style('fill', '#69b3a2');
+
+    </script>
+</body>
+
+</html>
