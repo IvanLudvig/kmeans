@@ -12,17 +12,16 @@
 
     <div class='controls'>
         <div class='control'>
-            Points: <input type='number' />
+            Points: <input type='number' id='points-input' value='1000' />
         </div>
         <div class='control'>
-            Clusters: <input type='number' />
+            Clusters: <input type='number' id='clusters-input' value='5' />
         </div>
         <div class='control'>
-            <button>
-
+            <button id='stop-btn'>
                 Stop
             </button>
-            <button>
+            <button id='restart-btn'>
                 Restart
             </button>
         </div>
@@ -33,6 +32,42 @@
 
     <script>
         const svgContainer = document.getElementById('container');
+        const pointsNumInput = document.getElementById('points-input');
+        const clustersNumInput = document.getElementById('clusters-input');
+        const stopBtn = document.getElementById('stop-btn');
+        const restartBtn = document.getElementById('restart-btn');
+
+        let numPoints = parseInt(pointsNumInput.value);
+        let numClusters = parseInt(clustersNumInput.value);
+
+        pointsNumInput.addEventListener('input', (ev) => {
+            if (parseInt(ev.target.value) !== numPoints) {
+                numPoints = parseInt(ev.target.value);
+                reset();
+            }
+        });
+
+        clustersNumInput.addEventListener('input', (ev) => {
+            if (parseInt(ev.target.value) !== numClusters) {
+                numClusters = parseInt(ev.target.value);
+                reset();
+            }
+        });
+
+        stopBtn.addEventListener('click', (ev) => {
+            if (interval) {
+                stop();
+                stopBtn.innerText = 'Start';
+            } else {
+                start();
+                stopBtn.innerText = 'Stop';
+            }
+
+        });
+
+        restartBtn.addEventListener('click', (ev) => {
+            reset();
+        });
 
         const margin = { top: 10, right: 30, bottom: 30, left: 60 };
 
@@ -53,10 +88,14 @@
             .attr('font-weight', 'bold')
             .attr('stroke-width', 2);
 
+        window.addEventListener('resize', function (event) {
+            d3.select('svg').attr('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`)
+                .attr('width', window.innerWidth - margin.left - margin.right)
+                .attr('height', window.innerHeight - margin.top - margin.bottom)
+        });
+
         const xrange = [0, 10];
         const yrange = [0, 10];
-        const numPoints = 1000;
-        const numClusters = 25;
 
         const x = d3.scaleLinear()
             .domain(xrange)
@@ -84,8 +123,8 @@
             return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
         }
 
-        let points = generatePoints(numPoints);
-        let centroids = generatePoints(numClusters);
+
+        let points, centroids, pointsSvg, centroidsSvg;
 
         const color = d3.scaleOrdinal(d3.schemeCategory10);
 
@@ -95,26 +134,6 @@
 
         svg.append('g')
             .call(d3.axisLeft(y));
-
-        const pointsSvg = svg.append('g')
-            .selectAll('dot')
-            .data(points)
-            .join('circle')
-            .attr('cx', d => x(d.x))
-            .attr('cy', d => y(d.y))
-            .attr('r', 5)
-            .style('fill', d => color(d.cluster));
-
-        const centroidsSvg = svg.append('g')
-            .selectAll('dot')
-            .data(centroids)
-            .join('circle')
-            .attr('cx', d => x(d.x))
-            .attr('cy', d => y(d.y))
-            .attr('r', 5)
-            .style('fill', '#e6e8ea')
-            .attr('stroke', (d, i) => color(i))
-            .attr('stroke-width', 2);
 
         const closestCentroid = (point) => {
             const distances = centroids.map(centroid => distance(point, centroid));
@@ -126,7 +145,7 @@
             points.forEach(point => {
                 point.cluster = closestCentroid(point);
             });
-            pointsSvg.transition().style('fill', d => color(d.cluster));
+            pointsSvg.transition().duration(500).style('fill', d => color(d.cluster));
         }
 
         const avg = (arr) => arr.reduce((p, c) => p + c, 0) / arr.length;
@@ -138,23 +157,60 @@
                     centroid.y = avg(cluster.map(point => point.y));
                 }
             });
-            centroidsSvg.transition().attr('cx', d => x(d.x)).attr('cy', d => y(d.y));
+            centroidsSvg.transition().duration(500).attr('cx', d => x(d.x)).attr('cy', d => y(d.y));
         }
 
-        const render = () => {
+        const start = () => {
             updatePoints();
-            setInterval(() => {
+            interval = setInterval(() => {
                 updateCentroids();
                 updatePoints();
             }, 1000);
         }
 
-        const reset = () => {
-            points = generatePoints(numPoints);
-            centroids = generatePoints(numClusters);
+        let interval;
+
+        const stop = () => {
+            if (interval) {
+                clearInterval(interval);
+                interval = null;
+            }
         }
 
-        render();
+        const reset = () => {
+            stop();
+
+            points = generatePoints(numPoints);
+            centroids = generatePoints(numClusters);
+
+            d3.select('#points-svg').remove();
+            d3.select('#centroids-svg').remove();
+            pointsSvg = svg.append('g')
+                .attr('id', 'points-svg')
+                .selectAll('dot')
+                .data(points)
+                .join('circle')
+                .attr('cx', d => x(d.x))
+                .attr('cy', d => y(d.y))
+                .attr('r', 4)
+                .style('fill', d => color(d.cluster));
+
+            centroidsSvg = svg.append('g')
+                .attr('id', 'centroids-svg')
+                .selectAll('dot')
+                .data(centroids)
+                .join('circle')
+                .attr('cx', d => x(d.x))
+                .attr('cy', d => y(d.y))
+                .attr('r', 5)
+                .style('fill', '#e6e8ea')
+                .attr('stroke', (d, i) => color(i))
+                .attr('stroke-width', 2);
+
+            start();
+        }
+
+        reset();
 
     </script>
 </body>
