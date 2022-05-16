@@ -174,6 +174,8 @@ const reset = () => {
         .attr('stroke', (d, i) => color(i))
         .attr('stroke-width', 2);
 
+    stopBtn.innerText = 'Stop';
+
     start();
 }
 
